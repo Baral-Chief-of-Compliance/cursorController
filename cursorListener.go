@@ -1,60 +1,53 @@
 package main
 
 import (
-  "fmt"
-  "os/exec"
+	"fmt"
+	"time"
+	"flag"
+	"os/exec"
 
-  // "github.com/go-vgo/robotgo"
-  hook "github.com/robotn/gohook"
+	hook "github.com/robotn/gohook"
 )
 
-func main() {
-  add()
-  low()
-  event()
-}
+var nextTime time.Time
 
-func add() {
-  fmt.Println("--- Please press ctrl + shift + q to stop hook ---")
-  hook.Register(hook.KeyDown, []string{"q", "ctrl", "shift"}, func(e hook.Event) {
-    fmt.Println("ctrl-shift-q")
-    hook.End()
-  })
-
-  fmt.Println("--- Please press w---")
-  hook.Register(hook.KeyDown, []string{"w"}, func(e hook.Event) {
-    fmt.Println("w")
-  })
-
-  s := hook.Start()
-  <-hook.Process(s)
-}
-
-func low() {
-	evChan := hook.Start()
+func main(){
+	chanHook := hook.Start()
 	defer hook.End()
 
-	for ev := range evChan {
-		fmt.Println("hook: ", ev)
+	delta_time := flag.Int("delta-time", 5, "Время бездействия пользователя в минутах")
+	browser_name := flag.String("browser-name", "chromium-browser", "Имя браузера, который будет убит по истечению времени бездействия")
+
+	flag.Usage = func() {
+		fmt.Println("Программа для убийства браузера при бездействии")
+		fmt.Println("\nВерсия 1.0.2 от 25.09.2025")
+		fmt.Println("\t- Раньше это программа убивала компьютеры")
+		fmt.Println("\nРазработана ГОКУ ЦЗН Мурманской Области инспектором ЦЗН")
+		fmt.Println("Глущенко Евгением Юрьевичем\n")
+		flag.PrintDefaults()
 	}
-	
-	cmd := exec.Command("chromium-browser")
-	cmd.Start()
-}
 
-func event() {
-  ok := hook.AddEvents("q", "ctrl", "shift")
-  if ok {
-    fmt.Println("add events...")
-  }
+	flag.Parse()
 
-  keve := hook.AddEvent("k")
-  if keve {
-    fmt.Println("you press... ", "k")
-  }
+	now := time.Now()
 
-  mleft := hook.AddEvent("mleft")
-  if mleft {
-    fmt.Println("you press... ", "mouse left button")
-  }
+	nextTime = now.Add(time.Minute * time.Duration(*delta_time))
+
+	for {
+		select {
+		case <-chanHook:
+			now := time.Now()
+			nextTime = now.Add(time.Minute * time.Duration(*delta_time))
+		default:
+			now := time.Now()
+
+			if now.Hour() >= nextTime.Hour() &&
+				now.Minute() >= nextTime.Minute() &&
+				now.Second() >= nextTime.Second() {
+				cmd := exec.Command("pkill", "-f", *browser_name)
+				cmd.Start()
+				nextTime = now.Add(time.Minute * time.Duration(*delta_time))
+			}	
+		}
+	}
 }
