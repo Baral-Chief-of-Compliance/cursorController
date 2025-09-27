@@ -1,55 +1,60 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"os/exec"
-	"time"
+  "fmt"
+  "os/exec"
 
-	"github.com/go-vgo/robotgo"
+  // "github.com/go-vgo/robotgo"
+  hook "github.com/robotn/gohook"
 )
 
-var nextTime time.Time
-
 func main() {
-	delta_time := flag.Int("delta-time", 5, "Время бездействия пользователя в минутах")
-	browser_name := flag.String("browser-name", "chromium-browser", "Имя браузера, который будет убит по истечению времени бездействия")
+  add()
+  low()
+  event()
+}
 
-	flag.Usage = func() {
-		fmt.Println("Программа для убийства браузера при бездействии")
-		fmt.Println("\nВерсия 1.0.1 от 15.08.2025")
-		fmt.Println("\t- Раньше это программа убивала компьютеры")
-		fmt.Println("\nРазработана ГОКУ ЦЗН Мурманской Области инспектором ЦЗН")
-		fmt.Println("Глущенко Евгением Юрьевичем\n")
-		flag.PrintDefaults()
+func add() {
+  fmt.Println("--- Please press ctrl + shift + q to stop hook ---")
+  hook.Register(hook.KeyDown, []string{"q", "ctrl", "shift"}, func(e hook.Event) {
+    fmt.Println("ctrl-shift-q")
+    hook.End()
+  })
+
+  fmt.Println("--- Please press w---")
+  hook.Register(hook.KeyDown, []string{"w"}, func(e hook.Event) {
+    fmt.Println("w")
+  })
+
+  s := hook.Start()
+  <-hook.Process(s)
+}
+
+func low() {
+	evChan := hook.Start()
+	defer hook.End()
+
+	for ev := range evChan {
+		fmt.Println("hook: ", ev)
 	}
+	
+	cmd := exec.Command("chromium-browser")
+	cmd.Start()
+}
 
-	flag.Parse()
+func event() {
+  ok := hook.AddEvents("q", "ctrl", "shift")
+  if ok {
+    fmt.Println("add events...")
+  }
 
-	now := time.Now()
+  keve := hook.AddEvent("k")
+  if keve {
+    fmt.Println("you press... ", "k")
+  }
 
-	nextTime = now.Add(time.Minute * time.Duration(*delta_time))
-
-	startX, startY := robotgo.Location()
-
-	for {
-		now := time.Now()
-
-		newX, newY := robotgo.Location()
-
-		if newX != startX && newY != startY {
-			startX = newX
-			startY = newY
-			nextTime = now.Add(time.Minute * time.Duration(*delta_time))
-		}
-
-		if now.Hour() >= nextTime.Hour() &&
-			now.Minute() >= nextTime.Minute() &&
-			now.Second() >= nextTime.Second() {
-			cmd := exec.Command("pkill", "-f", *browser_name)
-			cmd.Start()
-			nextTime = now.Add(time.Minute * time.Duration(*delta_time))
-		}
-
-	}
+  mleft := hook.AddEvent("mleft")
+  if mleft {
+    fmt.Println("you press... ", "mouse left button")
+  }
 }
